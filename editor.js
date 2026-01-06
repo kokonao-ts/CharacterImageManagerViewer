@@ -2,30 +2,37 @@
 class App {
     constructor() {
         this.data = []; // The main PictureList array
-        this.data = []; // The main PictureList array
+        this.selectedLayerIds = new Set();
         this.init();
     }
 
     init() {
         // Elements
         this.jsonInput = document.getElementById('jsonInput');
-        this.jsonInput = document.getElementById('jsonInput');
         this.loadBtn = document.getElementById('loadBtn');
         this.addLayerBtn = document.getElementById('addLayerBtn');
         this.exportBtn = document.getElementById('exportBtn');
         this.editorContainer = document.getElementById('editorContainer');
         this.copyBtn = document.getElementById('copyBtn');
-
-        // Set initial values
-
+        
+        // Bulk Actions Elements
+        this.bulkActionsPanel = document.getElementById('bulkActionsPanel');
+        this.selectedCountSpan = document.getElementById('selectedCount');
+        this.duplicateSelectedBtn = document.getElementById('duplicateSelectedBtn');
+        this.batchSwitchInput = document.getElementById('batchSwitchInput');
+        this.batchSwitchType = document.getElementById('batchSwitchType');
+        this.applyBatchSwitchBtn = document.getElementById('applyBatchSwitchBtn');
+        this.clearSelectionBtn = document.getElementById('clearSelectionBtn');
 
         // Bind Events
         this.loadBtn.addEventListener('click', () => this.loadData());
         this.addLayerBtn.addEventListener('click', () => this.addLayer());
         this.exportBtn.addEventListener('click', () => this.exportData());
-        this.loadBtn.addEventListener('click', () => this.loadData());
-        this.exportBtn.addEventListener('click', () => this.exportData());
         this.copyBtn.addEventListener('click', () => this.copyToClipboard());
+        
+        this.duplicateSelectedBtn.addEventListener('click', () => this.duplicateSelectedLayers());
+        this.applyBatchSwitchBtn.addEventListener('click', () => this.batchUpdateSwitch());
+        this.clearSelectionBtn.addEventListener('click', () => { this.selectedLayerIds.clear(); this.render(); });
 
         // Initial Load Attempt from Textarea
         if (this.jsonInput.value.trim()) {
@@ -63,6 +70,7 @@ class App {
                 return item;
             });
 
+            this.selectedLayerIds.clear();
             this.render();
             console.log("Data loaded", this.data);
         } catch (e) {
@@ -96,14 +104,26 @@ class App {
 
     render() {
         this.editorContainer.innerHTML = '';
+        this.updateBulkUI();
 
         this.data.forEach((layer, layerIndex) => {
             const card = document.createElement('div');
             card.className = 'layer-card';
+            // Highlight selected card
+            if (this.selectedLayerIds.has(layer._id)) {
+                card.style.border = "2px solid #2563eb";
+                card.style.backgroundColor = "#eff6ff";
+            }
             
             card.innerHTML = `
                 <div class="layer-header">
-                    <h3>Layer ${layerIndex + 1}: ${layer.Name || 'Unnamed'} (Actor ID: ${layer.ActorId})</h3>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <input type="checkbox" 
+                            style="width: 18px; height: 18px; cursor: pointer;"
+                            ${this.selectedLayerIds.has(layer._id) ? 'checked' : ''} 
+                            onchange="app.toggleLayerSelection(${layerIndex}, this.checked)">
+                        <h3>Layer ${layerIndex + 1}: ${layer.Name || 'Unnamed'} (Actor ID: ${layer.ActorId})</h3>
+                    </div>
                     <div>
                          <button class="btn btn-secondary" onclick="app.moveLayerUp(${layerIndex})" ${layerIndex === 0 ? 'disabled' : ''}>↑</button>
                          <button class="btn btn-secondary" onclick="app.moveLayerDown(${layerIndex})" ${layerIndex === this.data.length - 1 ? 'disabled' : ''}>↓</button>
@@ -263,6 +283,8 @@ class App {
 
     removeLayer(layerIndex) {
         if (!confirm("Remove this entire layer and all its images?")) return;
+        const layer = this.data[layerIndex];
+        this.selectedLayerIds.delete(layer._id); // Remove from selection if deleted
         this.data.splice(layerIndex, 1);
         this.render();
     }
@@ -305,6 +327,89 @@ class App {
         newLayer._id = Date.now() + Math.random();
         this.data.push(newLayer);
         this.render();
+    }
+
+    // --- Bulk Operations ---
+
+    toggleLayerSelection(layerIndex, isChecked) {
+        const layer = this.data[layerIndex];
+        if (isChecked) {
+            this.selectedLayerIds.add(layer._id);
+        } else {
+            this.selectedLayerIds.delete(layer._id);
+        }
+        this.render();
+    }
+
+    updateBulkUI() {
+        const count = this.selectedLayerIds.size;
+        this.selectedCountSpan.textContent = count;
+        if (count > 0) {
+            this.bulkActionsPanel.style.display = 'flex';
+            this.bulkActionsPanel.style.alignItems = 'center';
+        } else {
+            this.bulkActionsPanel.style.display = 'none';
+        }
+    }
+
+    duplicateSelectedLayers() {
+        if (this.selectedLayerIds.size === 0) return;
+        
+        // We iterate backwards or creating a new array to avoid concurrent modification issues,
+        // but since we insert into this.data, the indices shift.
+        // Easiest is to build a list of insertions and execute.
+        
+        const newLayers = [];
+        
+        // Map current indices to preserve order logic?
+        // Let's iterate over current data and check if selected.
+        
+        const newData = [];
+        
+        this.data.forEach(layer => {
+            newData.push(layer);
+            if (this.selectedLayerIds.has(layer._id)) {
+                // Create duplicate
+                const copy = JSON.parse(JSON.stringify(layer));
+                copy._id = Date.now() + Math.random(); // New ID
+                copy.Name = (copy.Name || '') + ' (Copy)';
+                newData.push(copy);
+                
+                // Note: user might want the copy to be selected? Or keep original selected?
+                // Standard behavior: selection often follows the new item or stays on old. 
+                // Let's keep selection on the *original* items for now or clear selection.
+                // It's less confusing if we don't auto-select copies immediately unless requested.
+            }
+        });
+        
+        this.data = newData;
+        this.render();
+    }
+
+    batchUpdateSwitch() {
+        if (this.selectedLayerIds.size === 0) return;
+        const val = this.batchSwitchInput.value;
+        const field = this.batchSwitchType.value;
+        
+        if (val === '') return;
+        
+        let updated = false;
+        this.data.forEach(layer => {
+            if (this.selectedLayerIds.has(layer._id)) {
+                layer[field] = val;
+                updated = true;
+            }
+        });
+        
+        if (updated) {
+            const map = {
+                'ShowPictureSwitch': 'Layer Switch',
+                'UnFocusSwitch': 'Unfocus Switch',
+                'MirrorSwitch': 'Invert Switch'
+            };
+            alert(`Updated ${map[field]} for ${this.selectedLayerIds.size} layers.`);
+            this.render();
+        }
     }
 }
 
