@@ -405,7 +405,8 @@ class App {
             const map = {
                 'ShowPictureSwitch': 'Layer Switch',
                 'UnFocusSwitch': 'Unfocus Switch',
-                'MirrorSwitch': 'Invert Switch'
+                'MirrorSwitch': 'Invert Switch',
+                'ActorId': 'Actor ID'
             };
             alert(`Updated ${map[field]} for ${this.selectedLayerIds.size} layers.`);
             this.render();
