@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Image Manager Editor</title>
+    <link rel="stylesheet" href="editor.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Character Image Editor</h1>
+
+        <div class="controls">
+            <div class="editor-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="input-group">
+                    <label>RPG Maker Project Path (e.g. C:/Games/MyRPG/)</label>
+                    <input type="text" id="projectPathInput"
+                        placeholder="Paste path to project root folder to load images...">
+                    <small style="color: var(--text-muted)">Needed to preview images. Make sure paths end with /</small>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>JSON Data</label>
+                <textarea id="jsonInput" rows="6" placeholder="Paste the Plugin Parameter JSON here..."></textarea>
+            </div>
+
+            <div class="top-bar-actions">
+                <button id="loadBtn" class="btn">Load Data</button>
+                <div style="flex:1"></div>
+                <button id="exportBtn" class="btn btn-secondary">Update JSON</button>
+                <button id="copyBtn" class="btn btn-secondary">Copy to Clipboard</button>
+            </div>
+        </div>
+
+        <div id="editorContainer" class="editor-grid">
+            <div style="text-align:center; grid-column: 1/-1; color: var(--text-muted); padding: 2rem;">
+                Load data to begin editing.
+            </div>
+        </div>
+    </div>
+
+    <script src="editor.js"></script>
+</body>
+
+</html>
