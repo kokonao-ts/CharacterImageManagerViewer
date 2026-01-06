@@ -2,34 +2,27 @@
 class App {
     constructor() {
         this.data = []; // The main PictureList array
-        this.projectPath = localStorage.getItem('projectPath') || '';
+        this.data = []; // The main PictureList array
         this.init();
     }
 
     init() {
         // Elements
         this.jsonInput = document.getElementById('jsonInput');
-        this.projectPathInput = document.getElementById('projectPathInput');
+        this.jsonInput = document.getElementById('jsonInput');
         this.loadBtn = document.getElementById('loadBtn');
         this.exportBtn = document.getElementById('exportBtn');
         this.editorContainer = document.getElementById('editorContainer');
         this.copyBtn = document.getElementById('copyBtn');
 
         // Set initial values
-        this.projectPathInput.value = this.projectPath;
+
 
         // Bind Events
         this.loadBtn.addEventListener('click', () => this.loadData());
         this.exportBtn.addEventListener('click', () => this.exportData());
-        this.projectPathInput.addEventListener('change', (e) => {
-            let val = e.target.value.trim();
-            if (val && !val.endsWith('/') && !val.endsWith('\\')) {
-                val += '/';
-            }
-            this.projectPath = val.replace(/\\/g, '/'); // Normalize slashes
-            localStorage.setItem('projectPath', this.projectPath);
-            this.render();
-        });
+        this.loadBtn.addEventListener('click', () => this.loadData());
+        this.exportBtn.addEventListener('click', () => this.exportData());
         this.copyBtn.addEventListener('click', () => this.copyToClipboard());
 
         // Initial Load Attempt from Textarea
@@ -160,14 +153,9 @@ class App {
         const el = document.createElement('div');
         el.className = 'file-item';
 
-        let baseUrl = this.projectPath;
-        if (!baseUrl) {
-             baseUrl = ''; 
-        }
-        
         let imgSrc = '';
         if (file.FileName) {
-            imgSrc = `${baseUrl}img/pictures/${file.FileName}.png`;
+            imgSrc = `img/pictures/${file.FileName}.png`;
         }
 
         el.innerHTML = `
