@@ -38,7 +38,6 @@ You can download the latest version of `CharacterPictureManager.js` from Triacon
 3.  **Load Data**:
     -   If you have existing configuration data, copy the JSON string from the `CharacterPictureManager` plugin parameters in RPG Maker.
     -   Paste it into the "JSON Data" text area and click **Load Data**.
-    -   If starting from scratch, you can just start adding layers.
 4.  **Edit**:
     -   **Add Layer**: Create new layers for different characters or depth levels.
     -   **Add Image**: Add image entries to a layer.

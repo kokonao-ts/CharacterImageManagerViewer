@@ -11,6 +11,7 @@ class App {
         this.jsonInput = document.getElementById('jsonInput');
         this.jsonInput = document.getElementById('jsonInput');
         this.loadBtn = document.getElementById('loadBtn');
+        this.addLayerBtn = document.getElementById('addLayerBtn');
         this.exportBtn = document.getElementById('exportBtn');
         this.editorContainer = document.getElementById('editorContainer');
         this.copyBtn = document.getElementById('copyBtn');
@@ -20,6 +21,7 @@ class App {
 
         // Bind Events
         this.loadBtn.addEventListener('click', () => this.loadData());
+        this.addLayerBtn.addEventListener('click', () => this.addLayer());
         this.exportBtn.addEventListener('click', () => this.exportData());
         this.loadBtn.addEventListener('click', () => this.loadData());
         this.exportBtn.addEventListener('click', () => this.exportData());
@@ -283,6 +285,25 @@ class App {
 
         this.data.push(newLayer);
         this.data[layerIndex].FileList.splice(fileIndex, 1);
+        this.render();
+    }
+
+    addLayer() {
+        const newLayer = {
+            "ActorId": "1",
+            "Name": "New Layer",
+            "Opacity": "255",
+            "X": "0", "Y": "0",
+            "ScaleX": "100", "ScaleY": "100",
+            "OutOfShake": "false",
+            "FileList": [],
+            "ShowPictureSwitch": "0",
+            "UnFocusSwitch": "0",
+            "MirrorSwitch": "0",
+            "TouchSwitch": "0"
+        };
+        newLayer._id = Date.now() + Math.random();
+        this.data.push(newLayer);
         this.render();
     }
 }
