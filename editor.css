@@ -370,3 +370,11 @@ input:focus {
   padding: 0.25rem;
   font-family: 'Consolas', 'Monaco', monospace;
 }
+.browser-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--glass-border);
+  margin-top: 1rem;
+}

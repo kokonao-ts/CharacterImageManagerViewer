@@ -40,6 +40,9 @@ class App {
         this.batchSwitchType = document.getElementById('batchSwitchType');
         this.applyBatchSwitchBtn = document.getElementById('applyBatchSwitchBtn');
         this.clearSelectionBtn = document.getElementById('clearSelectionBtn');
+        
+        this.addSelectedToLayerBtn = document.getElementById('addSelectedToLayerBtn');
+        this.clearBrowserSelectionBtn = document.getElementById('clearBrowserSelectionBtn');
 
         // Bind Events
         this.loadBtn.addEventListener('click', () => this.loadData());
@@ -55,6 +58,9 @@ class App {
         this.duplicateSelectedBtn.addEventListener('click', () => this.duplicateSelectedLayers());
         this.applyBatchSwitchBtn.addEventListener('click', () => this.batchUpdateSwitch());
         this.clearSelectionBtn.addEventListener('click', () => { this.selectedLayerIds.clear(); this.render(); });
+        
+        this.addSelectedToLayerBtn.addEventListener('click', () => this.addSelectedImagesToLayer());
+        this.clearBrowserSelectionBtn.addEventListener('click', () => { this.selectedImages.clear(); this.renderImageBrowser(); });
 
         // Initial Load Attempt from Textarea
         if (this.jsonInput.value.trim()) {
@@ -414,7 +420,11 @@ class App {
 
         newLayer.FileList = [ JSON.parse(JSON.stringify(fileItem)) ];
 
-        this.data.push(newLayer);
+        this.fullData.push(newLayer);
+        if (this.filterActorId !== null) {
+            this.data.push(newLayer);
+        }
+
         this.data[layerIndex].FileList.splice(fileIndex, 1);
         this.render();
     }
@@ -585,10 +595,12 @@ class App {
         
         if (this.availableImages.length === 0) {
             this.imageBrowserContent.innerHTML = '<p style="text-align:center; color: var(--text-muted); grid-column: 1/-1;">No images found. Click "Scan Images" to load.</p>';
+            this.addSelectedToLayerBtn.disabled = true;
+            this.addSelectedToLayerBtn.textContent = 'Add Selected to Layer (0)';
             return;
         }
 
-        this.availableImages.forEach((imagePath, index) => {
+        this.availableImages.forEach((imagePath) => {
             const card = document.createElement('div');
             card.className = 'image-card';
             if (this.selectedImages.has(imagePath)) {
@@ -604,7 +616,7 @@ class App {
 
             const name = document.createElement('div');
             name.className = 'image-card-name';
-            name.textContent = imagePath; // Show full path
+            name.textContent = imagePath; 
             name.title = imagePath;
 
             card.appendChild(img);
@@ -616,38 +628,15 @@ class App {
                 } else {
                     this.selectedImages.add(imagePath);
                 }
-                // Re-render to update button state and card styling
                 this.renderImageBrowser();
             });
 
             this.imageBrowserContent.appendChild(card);
         });
 
-        // Add action buttons at the bottom
-        const actionBar = document.createElement('div');
-        actionBar.style.gridColumn = '1 / -1';
-        actionBar.style.display = 'flex';
-        actionBar.style.gap = '1rem';
-        actionBar.style.justifyContent = 'center';
-        actionBar.style.marginTop = '1rem';
-
-        const addToLayerBtn = document.createElement('button');
-        addToLayerBtn.className = 'btn';
-        addToLayerBtn.textContent = `Add Selected to Layer (${this.selectedImages.size})`;
-        addToLayerBtn.disabled = this.selectedImages.size === 0;
-        addToLayerBtn.addEventListener('click', () => this.addSelectedImagesToLayer());
-
-        const clearSelectionBtn = document.createElement('button');
-        clearSelectionBtn.className = 'btn btn-secondary';
-        clearSelectionBtn.textContent = 'Clear Selection';
-        clearSelectionBtn.addEventListener('click', () => {
-            this.selectedImages.clear();
-            this.renderImageBrowser();
-        });
-
-        actionBar.appendChild(addToLayerBtn);
-        actionBar.appendChild(clearSelectionBtn);
-        this.imageBrowserContent.appendChild(actionBar);
+        // Update static buttons
+        this.addSelectedToLayerBtn.disabled = this.selectedImages.size === 0;
+        this.addSelectedToLayerBtn.textContent = `Add Selected to Layer (${this.selectedImages.size})`;
     }
 
     addSelectedImagesToLayer() {
@@ -656,25 +645,31 @@ class App {
             return;
         }
 
-        if (this.data.length === 0) {
-            alert('Please create or load a layer first.');
-            return;
-        }
-
-        // Prompt user to select which layer to add to
         const layerOptions = this.data.map((layer, idx) => 
             `${idx + 1}: ${layer.Name || 'Unnamed'} (Actor ${layer.ActorId})`
         ).join('\n');
         
-        const layerIndexStr = prompt(`Select layer to add images to:\n${layerOptions}\n\nEnter layer number:`);
+        const msg = this.data.length > 0
+            ? `Select layer to add images to:\n${layerOptions}\n\nEnter layer number OR leave empty to create a new layer:`
+            : `No layers found.\n\nLeave empty to create a new layer and add images to it.`;
+
+        const layerIndexStr = prompt(msg);
         
-        if (!layerIndexStr) return;
+        if (layerIndexStr === null) return; // User cancelled
         
-        const layerIndex = parseInt(layerIndexStr) - 1;
-        
-        if (isNaN(layerIndex) || layerIndex < 0 || layerIndex >= this.data.length) {
-            alert('Invalid layer number.');
-            return;
+        let targetLayerIndex = -1;
+        const input = layerIndexStr.trim().toLowerCase();
+
+        if (input === '' || input === 'n' || input === 'new') {
+            this.addLayer(); // Adds to end and renders
+            targetLayerIndex = this.data.length - 1;
+        } else {
+            const parsed = parseInt(input);
+            if (isNaN(parsed) || parsed < 1 || parsed > this.data.length) {
+                alert('Invalid layer number.');
+                return;
+            }
+            targetLayerIndex = parsed - 1;
         }
 
         // Add each selected image to the layer
@@ -689,10 +684,19 @@ class App {
                 "Switch": "0", "Variable": "0", "VariableType": "0", "VariableOperand": "0",
                 "Script": ""
             };
-            this.data[layerIndex].FileList.push(newFile);
+            this.data[targetLayerIndex].FileList.push(newFile);
+            
+            // Sync with fullData if needed
+            if (this.filterActorId !== null) {
+                const layerId = this.data[targetLayerIndex]._id;
+                const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
+                if (fullDataIndex !== -1) {
+                    this.fullData[fullDataIndex].FileList.push(JSON.parse(JSON.stringify(newFile)));
+                }
+            }
         });
 
-        alert(`Added ${this.selectedImages.size} image(s) to layer ${layerIndex + 1}.`);
+        alert(`Added ${this.selectedImages.size} image(s) to layer ${targetLayerIndex + 1}.`);
         this.selectedImages.clear();
         this.renderImageBrowser();
         this.render();
