@@ -686,14 +686,8 @@ class App {
             };
             this.data[targetLayerIndex].FileList.push(newFile);
             
-            // Sync with fullData if needed
-            if (this.filterActorId !== null) {
-                const layerId = this.data[targetLayerIndex]._id;
-                const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
-                if (fullDataIndex !== -1) {
-                    this.fullData[fullDataIndex].FileList.push(JSON.parse(JSON.stringify(newFile)));
-                }
-            }
+            // Sync with fullData is redundant because this.data elements are references to this.fullData elements.
+            // Pushing to this.data[i].FileList modifies the same object.
         });
 
         alert(`Added ${this.selectedImages.size} image(s) to layer ${targetLayerIndex + 1}.`);
