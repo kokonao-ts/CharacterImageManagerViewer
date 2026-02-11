@@ -214,6 +214,22 @@ class Editor {
         }
     }
 
+    updateLayerVariableId(layerId, value) {
+        const layer = this.getLayerById(layerId);
+        if (layer && layer.FileList) {
+            // Update ALL files in this layer to have the same Variable ID
+            layer.FileList.forEach(file => {
+                file.Variable = value;
+            });
+            // We might need to re-render if we want to be sure, 
+            // but usually the input field that triggered this holds the value visually. 
+            // However, since we don't store the ID on the layer itself, 
+            // a re-render will fetch it from FileList[0].
+            // Let's NOT re-render for performance, assuming the UI input persists.
+            // Actually, if we add a new file it needs this value.
+        }
+    }
+
     addNewLayer() {
         const actorId = this.filterActorId !== null ? this.filterActorId : "1";
         const newLayer = {
@@ -263,6 +279,12 @@ class Editor {
         const layer = this.getLayerById(layerId);
         if (!layer) return;
 
+        // inherit variable ID from existing files if possible
+        let defaultVarId = "0";
+        if (layer.FileList.length > 0) {
+            defaultVarId = layer.FileList[0].Variable || "0";
+        }
+
         const newFile = {
             "FileName": "",
             "HpUpperLimit": "0", "HpLowerLimit": "0",
@@ -270,7 +292,7 @@ class Editor {
             "Action": "false", "Motion": "", "State": "0",
             "Weapon": "0", "Armor": "0", "Scene": "", "Note": "",
             "Message": "false", "Face": "false", "Speaker": "false",
-            "Switch": "0", "Variable": "0", "VariableType": "0", "VariableOperand": "0",
+            "Switch": "0", "Variable": defaultVarId, "VariableType": "0", "VariableOperand": "0",
             "Script": ""
         };
         layer.FileList.push(newFile);
@@ -456,7 +478,15 @@ class Editor {
 
             // Fields
             content.appendChild(this.createInputGroup('Layer Name', 'text', layer.Name || '', v => this.updateLayerProp(layer._id, 'Name', v)));
-            content.appendChild(this.createInputGroup('Actor ID', 'number', layer.ActorId || 1, v => this.updateLayerProp(layer._id, 'ActorId', v)));
+            
+            // Layer Level Variable ID (Derived from first file or default 0)
+            const currentVarId = (layer.FileList && layer.FileList.length > 0) ? layer.FileList[0].Variable : "0";
+            
+            const metaGrid = document.createElement('div');
+            metaGrid.style.cssText = "display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;";
+            metaGrid.appendChild(this.createInputGroup('Actor ID', 'number', layer.ActorId || 1, v => this.updateLayerProp(layer._id, 'ActorId', v)));
+            metaGrid.appendChild(this.createInputGroup('Variable ID (Layer)', 'number', currentVarId, v => this.updateLayerVariableId(layer._id, v)));
+            content.appendChild(metaGrid);
             
             const grid = document.createElement('div');
             grid.style.cssText = "display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;";
@@ -510,9 +540,27 @@ class Editor {
         lbl.textContent = label;
         const inp = document.createElement('input');
         inp.type = type;
-        inp.value = value || (type === 'number' ? 0 : '');
+        inp.value = value !== undefined ? value : (type === 'number' ? 0 : '');
         inp.addEventListener('change', (e) => onChange(e.target.value));
         group.append(lbl, inp);
+        return group;
+    }
+
+    createSelectGroup(label, options, value, onChange) {
+        const group = document.createElement('div');
+        group.className = 'input-group';
+        const lbl = document.createElement('label');
+        lbl.textContent = label;
+        const sel = document.createElement('select');
+        options.forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt.v;
+            o.textContent = opt.l;
+            if (String(opt.v) === String(value)) o.selected = true;
+            sel.appendChild(o);
+        });
+        sel.addEventListener('change', (e) => onChange(e.target.value));
+        group.append(lbl, sel);
         return group;
     }
 
@@ -535,8 +583,21 @@ class Editor {
         // Row 2: Grid
         const grid = document.createElement('div');
         grid.className = 'file-row';
+        grid.style.cssText = "display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; align-items: end;";
+        
+        // Removed Variable ID from here, added Value and Comparison
         grid.appendChild(this.createInputGroup('Switch ID', 'number', file.Switch, v => this.updateFileProp(layer._id, fileIndex, 'Switch', v)));
-        grid.appendChild(this.createInputGroup('Variable ID', 'number', file.Variable, v => this.updateFileProp(layer._id, fileIndex, 'Variable', v)));
+        
+        // Variable Comparison Method
+        const varTypes = [
+            {v:'0', l:'= (Eq)'}, {v:'1', l:'>= (>=)'}, {v:'2', l:'<= (<=)'},
+            {v:'3', l:'> (>)'}, {v:'4', l:'< (<)'}, {v:'5', l:'!= (Ne)'}
+        ];
+        grid.appendChild(this.createSelectGroup('Var Comp', varTypes, file.VariableType || '0', v => this.updateFileProp(layer._id, fileIndex, 'VariableType', v)));
+        
+        // Variable Value (Operand)
+        grid.appendChild(this.createInputGroup('Var Value', 'number', file.VariableOperand || '0', v => this.updateFileProp(layer._id, fileIndex, 'VariableOperand', v)));
+
         grid.appendChild(this.createInputGroup('Armor ID', 'number', file.Armor, v => this.updateFileProp(layer._id, fileIndex, 'Armor', v)));
         details.appendChild(grid);
         
