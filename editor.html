@@ -27,6 +27,12 @@
                 <button id="loadBtn" class="btn">Load Data</button>
                 <button id="addLayerBtn" class="btn">Add New Layer</button>
                 <button id="scanImagesBtn" class="btn">Scan Images</button>
+                <div class="separator-vertical"></div>
+                <label style="font-size: 0.875rem; color: var(--text-muted);">Filter by Actor ID:</label>
+                <input type="number" id="filterActorIdInput" placeholder="Actor ID" class="input-sm"
+                    style="width: 100px !important;">
+                <button id="applyFilterBtn" class="btn btn-secondary">Apply Filter</button>
+                <button id="clearFilterBtn" class="btn btn-secondary" style="display:none;">Clear Filter</button>
                 <div style="flex:1"></div>
                 <button id="exportBtn" class="btn btn-secondary">Update JSON</button>
                 <button id="copyBtn" class="btn btn-secondary">Copy to Clipboard</button>

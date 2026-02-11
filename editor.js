@@ -3,6 +3,8 @@
 class App {
     constructor() {
         this.data = []; // The main PictureList array
+        this.fullData = []; // Store unfiltered data
+        this.filterActorId = null; // Current filter value
         this.selectedLayerIds = new Set();
         this.availableImages = []; // List of all images in img/pictures
         this.selectedImages = new Set(); // Currently selected images in browser
@@ -19,6 +21,11 @@ class App {
         this.exportBtn = document.getElementById('exportBtn');
         this.editorContainer = document.getElementById('editorContainer');
         this.copyBtn = document.getElementById('copyBtn');
+        
+        // Filter Elements
+        this.filterActorIdInput = document.getElementById('filterActorIdInput');
+        this.applyFilterBtn = document.getElementById('applyFilterBtn');
+        this.clearFilterBtn = document.getElementById('clearFilterBtn');
         
         // Image Browser Elements
         this.imageBrowserPanel = document.getElementById('imageBrowserPanel');
@@ -42,6 +49,9 @@ class App {
         this.copyBtn.addEventListener('click', () => this.copyToClipboard());
         this.toggleBrowserBtn.addEventListener('click', () => this.toggleImageBrowser());
         
+        this.applyFilterBtn.addEventListener('click', () => this.applyFilter());
+        this.clearFilterBtn.addEventListener('click', () => this.clearFilter());
+        
         this.duplicateSelectedBtn.addEventListener('click', () => this.duplicateSelectedLayers());
         this.applyBatchSwitchBtn.addEventListener('click', () => this.batchUpdateSwitch());
         this.clearSelectionBtn.addEventListener('click', () => { this.selectedLayerIds.clear(); this.render(); });
@@ -59,7 +69,7 @@ class App {
         try {
             let parsedArray = JSON.parse(rawInfo);
             
-            this.data = parsedArray.map((itemStr, index) => {
+            this.fullData = parsedArray.map((itemStr, index) => {
                 let item = JSON.parse(itemStr);
                 
                 if (typeof item.FileList === 'string') {
@@ -82,6 +92,11 @@ class App {
                 return item;
             });
 
+            // Reset filter when loading new data
+            this.data = this.fullData;
+            this.filterActorId = null;
+            this.filterActorIdInput.value = '';
+            this.clearFilterBtn.style.display = 'none';
             this.selectedLayerIds.clear();
             this.render();
             console.log("Data loaded", this.data);
@@ -92,7 +107,10 @@ class App {
     }
 
     exportData() {
-        const exportArray = this.data.map(item => {
+        // Always export fullData, not filtered data
+        const dataToExport = this.filterActorId !== null ? this.fullData : this.data;
+        
+        const exportArray = dataToExport.map(item => {
             const cleanItem = { ...item };
             delete cleanItem._id; 
             
@@ -106,6 +124,10 @@ class App {
         
         const output = JSON.stringify(exportArray);
         this.jsonInput.value = output;
+        
+        if (this.filterActorId !== null) {
+            alert('Exported complete data (filter was not applied to export)');
+        }
     }
 
     copyToClipboard() {
@@ -146,6 +168,11 @@ class App {
                     <div class="input-group">
                         <label>Layer Name</label>
                         <input type="text" value="${layer.Name || ''}" onchange="app.updateLayer(${layerIndex}, 'Name', this.value)">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Actor ID</label>
+                        <input type="number" value="${layer.ActorId || 1}" onchange="app.updateLayer(${layerIndex}, 'ActorId', this.value)">
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
@@ -237,10 +264,29 @@ class App {
 
     updateLayer(layerIndex, field, value) {
         this.data[layerIndex][field] = value;
+        
+        // If filter is active, also update fullData
+        if (this.filterActorId !== null) {
+            const layerId = this.data[layerIndex]._id;
+            const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
+            if (fullDataIndex !== -1) {
+                this.fullData[fullDataIndex][field] = value;
+            }
+        }
     }
 
     updateFile(layerIndex, fileIndex, field, value) {
         this.data[layerIndex].FileList[fileIndex][field] = value;
+        
+        // If filter is active, also update fullData
+        if (this.filterActorId !== null) {
+            const layerId = this.data[layerIndex]._id;
+            const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
+            if (fullDataIndex !== -1) {
+                this.fullData[fullDataIndex].FileList[fileIndex][field] = value;
+            }
+        }
+        
         if (field === 'FileName') {
              this.render(); 
         }
@@ -250,6 +296,17 @@ class App {
         if (fileIndex <= 0) return;
         const list = this.data[layerIndex].FileList;
         [list[fileIndex - 1], list[fileIndex]] = [list[fileIndex], list[fileIndex - 1]];
+        
+        // Sync with fullData
+        if (this.filterActorId !== null) {
+            const layerId = this.data[layerIndex]._id;
+            const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
+            if (fullDataIndex !== -1) {
+                const fullList = this.fullData[fullDataIndex].FileList;
+                [fullList[fileIndex - 1], fullList[fileIndex]] = [fullList[fileIndex], fullList[fileIndex - 1]];
+            }
+        }
+        
         this.render();
     }
 
@@ -257,6 +314,17 @@ class App {
         const list = this.data[layerIndex].FileList;
         if (fileIndex >= list.length - 1) return;
         [list[fileIndex + 1], list[fileIndex]] = [list[fileIndex], list[fileIndex + 1]];
+        
+        // Sync with fullData
+        if (this.filterActorId !== null) {
+            const layerId = this.data[layerIndex]._id;
+            const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
+            if (fullDataIndex !== -1) {
+                const fullList = this.fullData[fullDataIndex].FileList;
+                [fullList[fileIndex + 1], fullList[fileIndex]] = [fullList[fileIndex], fullList[fileIndex + 1]];
+            }
+        }
+        
         this.render();
     }
 
@@ -284,20 +352,49 @@ class App {
             "Script": ""
         };
         this.data[layerIndex].FileList.push(newFile);
+        
+        // Sync with fullData
+        if (this.filterActorId !== null) {
+            const layerId = this.data[layerIndex]._id;
+            const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
+            if (fullDataIndex !== -1) {
+                this.fullData[fullDataIndex].FileList.push(JSON.parse(JSON.stringify(newFile)));
+            }
+        }
+        
         this.render();
     }
 
     removeFile(layerIndex, fileIndex) {
         if (!confirm("Remove this image?")) return;
         this.data[layerIndex].FileList.splice(fileIndex, 1);
+        
+        // Sync with fullData
+        if (this.filterActorId !== null) {
+            const layerId = this.data[layerIndex]._id;
+            const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
+            if (fullDataIndex !== -1) {
+                this.fullData[fullDataIndex].FileList.splice(fileIndex, 1);
+            }
+        }
+        
         this.render();
     }
 
     removeLayer(layerIndex) {
         if (!confirm("Remove this entire layer and all its images?")) return;
         const layer = this.data[layerIndex];
-        this.selectedLayerIds.delete(layer._id); // Remove from selection if deleted
+        this.selectedLayerIds.delete(layer._id);
+        
+        // Remove from both data and fullData
+        const layerId = layer._id;
         this.data.splice(layerIndex, 1);
+        
+        const fullDataIndex = this.fullData.findIndex(l => l._id === layerId);
+        if (fullDataIndex !== -1) {
+            this.fullData.splice(fullDataIndex, 1);
+        }
+        
         this.render();
     }
 
@@ -337,7 +434,15 @@ class App {
             "TouchSwitch": "0"
         };
         newLayer._id = Date.now() + Math.random();
-        this.data.push(newLayer);
+        
+        // Add to fullData always
+        this.fullData.push(JSON.parse(JSON.stringify(newLayer)));
+        
+        // Add to data only if no filter or matches filter
+        if (this.filterActorId === null || newLayer.ActorId == this.filterActorId) {
+            this.data.push(newLayer);
+        }
+        
         this.render();
     }
 
@@ -596,6 +701,37 @@ class App {
             this.imageBrowserPanel.style.display = 'none';
             this.toggleBrowserBtn.textContent = 'Show';
         }
+    }
+
+    // --- Filter Methods ---
+    
+    applyFilter() {
+        const actorId = this.filterActorIdInput.value.trim();
+        
+        if (!actorId) {
+            alert('Please enter an Actor ID to filter by.');
+            return;
+        }
+        
+        this.filterActorId = actorId;
+        this.data = this.fullData.filter(layer => layer.ActorId == actorId);
+        
+        this.clearFilterBtn.style.display = 'inline-block';
+        this.selectedLayerIds.clear();
+        this.render();
+        
+        console.log(`Filtered to Actor ID ${actorId}: ${this.data.length} layers`);
+    }
+    
+    clearFilter() {
+        this.filterActorId = null;
+        this.data = this.fullData;
+        this.filterActorIdInput.value = '';
+        this.clearFilterBtn.style.display = 'none';
+        this.selectedLayerIds.clear();
+        this.render();
+        
+        console.log('Filter cleared, showing all layers');
     }
 }
 
