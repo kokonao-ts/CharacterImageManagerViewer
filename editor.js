@@ -420,8 +420,11 @@ class App {
     }
 
     addLayer() {
+        // Use filter ID if active, otherwise default to "1"
+        const targetActorId = this.filterActorId !== null ? this.filterActorId : "1";
+
         const newLayer = {
-            "ActorId": "1",
+            "ActorId": targetActorId,
             "Name": "New Layer",
             "Opacity": "255",
             "X": "0", "Y": "0",
@@ -436,10 +439,12 @@ class App {
         newLayer._id = Date.now() + Math.random();
         
         // Add to fullData always
-        this.fullData.push(JSON.parse(JSON.stringify(newLayer)));
+        // Note: If no filter is active, this.data === this.fullData, so pushing to fullData adds it to data as well.
+        this.fullData.push(newLayer);
         
-        // Add to data only if no filter or matches filter
-        if (this.filterActorId === null || newLayer.ActorId == this.filterActorId) {
+        // If a filter is active, this.data is a separate filtered array.
+        // We set the ActorId to match the filter, so we should add it to the current view as well.
+        if (this.filterActorId !== null) {
             this.data.push(newLayer);
         }
         
