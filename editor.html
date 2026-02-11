@@ -26,6 +26,7 @@
             <div class="top-bar-actions">
                 <button id="loadBtn" class="btn">Load Data</button>
                 <button id="addLayerBtn" class="btn">Add New Layer</button>
+                <button id="scanImagesBtn" class="btn">Scan Images</button>
                 <div style="flex:1"></div>
                 <button id="exportBtn" class="btn btn-secondary">Update JSON</button>
                 <button id="copyBtn" class="btn btn-secondary">Copy to Clipboard</button>
@@ -46,6 +47,17 @@
                 </select>
                 <input type="number" id="batchSwitchInput" placeholder="ID" class="input-sm">
                 <button id="applyBatchSwitchBtn" class="btn btn-secondary">Apply</button>
+            </div>
+        </div>
+
+        <div id="imageBrowserPanel" class="image-browser-panel" style="display:none;">
+            <div class="panel-header">
+                <h2>Image Browser</h2>
+                <button id="toggleBrowserBtn" class="btn btn-secondary btn-sm">Hide</button>
+            </div>
+            <div id="imageBrowserContent" class="image-browser-content">
+                <p style="text-align:center; color: var(--text-muted);">Click "Scan Images" to load images from
+                    img/pictures</p>
             </div>
         </div>
 

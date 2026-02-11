@@ -1,8 +1,12 @@
 
+
 class App {
     constructor() {
         this.data = []; // The main PictureList array
         this.selectedLayerIds = new Set();
+        this.availableImages = []; // List of all images in img/pictures
+        this.selectedImages = new Set(); // Currently selected images in browser
+        this.currentEditingLayer = null; // Layer index to add images to
         this.init();
     }
 
@@ -11,9 +15,15 @@ class App {
         this.jsonInput = document.getElementById('jsonInput');
         this.loadBtn = document.getElementById('loadBtn');
         this.addLayerBtn = document.getElementById('addLayerBtn');
+        this.scanImagesBtn = document.getElementById('scanImagesBtn');
         this.exportBtn = document.getElementById('exportBtn');
         this.editorContainer = document.getElementById('editorContainer');
         this.copyBtn = document.getElementById('copyBtn');
+        
+        // Image Browser Elements
+        this.imageBrowserPanel = document.getElementById('imageBrowserPanel');
+        this.imageBrowserContent = document.getElementById('imageBrowserContent');
+        this.toggleBrowserBtn = document.getElementById('toggleBrowserBtn');
         
         // Bulk Actions Elements
         this.bulkActionsPanel = document.getElementById('bulkActionsPanel');
@@ -27,8 +37,10 @@ class App {
         // Bind Events
         this.loadBtn.addEventListener('click', () => this.loadData());
         this.addLayerBtn.addEventListener('click', () => this.addLayer());
+        this.scanImagesBtn.addEventListener('click', () => this.scanImages());
         this.exportBtn.addEventListener('click', () => this.exportData());
         this.copyBtn.addEventListener('click', () => this.copyToClipboard());
+        this.toggleBrowserBtn.addEventListener('click', () => this.toggleImageBrowser());
         
         this.duplicateSelectedBtn.addEventListener('click', () => this.duplicateSelectedLayers());
         this.applyBatchSwitchBtn.addEventListener('click', () => this.batchUpdateSwitch());
@@ -412,7 +424,181 @@ class App {
             this.render();
         }
     }
+
+    // --- Image Browser Methods ---
+
+    async scanImages() {
+        // Hardcoded list based on the file structure
+        // In a real scenario, you'd use File System Access API or server-side scanning
+        const imageList = [
+            'child/body.png',
+            'child/cloth/pajama.png',
+            'child/cloth/pajama_pink.png',
+            'child/cloth/underwear.png',
+            'child/cloth/uniform.png',
+            'child/misaki/back_hair.png',
+            'child/misaki/emotion/joy.png',
+            'child/misaki/emotion/niya.png',
+            'child/misaki/emotion/noEmote.png',
+            'child/misaki/emotion/notHappy.png',
+            'child/misaki/emotion/smallSmile.png',
+            'child/misaki/emotion/smile.png',
+            'child/misaki/emotion/surprise.png',
+            'child/misaki/front_hair.png',
+            'child/yuna/back_hair.png',
+            'child/yuna/emotion/face_shadow.png',
+            'child/yuna/emotion/joy.png',
+            'child/yuna/emotion/niya.png',
+            'child/yuna/emotion/noEmote.png',
+            'child/yuna/emotion/notHappy.png',
+            'child/yuna/emotion/red.png',
+            'child/yuna/emotion/smallSmile.png',
+            'child/yuna/emotion/surprise.png',
+            'child/yuna/front_hair.png',
+            'hikari/dark_satisfy.png',
+            'hikari/niya.png',
+            'hikari/normal.png',
+            'hikari/surprise.png',
+            'onne/normal.png',
+            'onne/shy.png'
+        ];
+
+        // Remove .png extension for storage (as the plugin uses names without extension)
+        this.availableImages = imageList.map(path => path.replace('.png', ''));
+        
+        this.renderImageBrowser();
+        this.imageBrowserPanel.style.display = 'block';
+    }
+
+    renderImageBrowser() {
+        this.imageBrowserContent.innerHTML = '';
+        
+        if (this.availableImages.length === 0) {
+            this.imageBrowserContent.innerHTML = '<p style="text-align:center; color: var(--text-muted); grid-column: 1/-1;">No images found. Click "Scan Images" to load.</p>';
+            return;
+        }
+
+        this.availableImages.forEach((imagePath, index) => {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            if (this.selectedImages.has(imagePath)) {
+                card.classList.add('selected');
+            }
+
+            const img = document.createElement('img');
+            img.src = `img/pictures/${imagePath}.png`;
+            img.alt = imagePath;
+            img.onerror = () => {
+                img.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGR5PSIuM2VtIiBmaWxsPSIjNTU1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5OL0E8L3RleHQ+PC9zdmc+';
+            };
+
+            const name = document.createElement('div');
+            name.className = 'image-card-name';
+            name.textContent = imagePath; // Show full path
+            name.title = imagePath;
+
+            card.appendChild(img);
+            card.appendChild(name);
+
+            card.addEventListener('click', () => {
+                if (this.selectedImages.has(imagePath)) {
+                    this.selectedImages.delete(imagePath);
+                } else {
+                    this.selectedImages.add(imagePath);
+                }
+                // Re-render to update button state and card styling
+                this.renderImageBrowser();
+            });
+
+            this.imageBrowserContent.appendChild(card);
+        });
+
+        // Add action buttons at the bottom
+        const actionBar = document.createElement('div');
+        actionBar.style.gridColumn = '1 / -1';
+        actionBar.style.display = 'flex';
+        actionBar.style.gap = '1rem';
+        actionBar.style.justifyContent = 'center';
+        actionBar.style.marginTop = '1rem';
+
+        const addToLayerBtn = document.createElement('button');
+        addToLayerBtn.className = 'btn';
+        addToLayerBtn.textContent = `Add Selected to Layer (${this.selectedImages.size})`;
+        addToLayerBtn.disabled = this.selectedImages.size === 0;
+        addToLayerBtn.addEventListener('click', () => this.addSelectedImagesToLayer());
+
+        const clearSelectionBtn = document.createElement('button');
+        clearSelectionBtn.className = 'btn btn-secondary';
+        clearSelectionBtn.textContent = 'Clear Selection';
+        clearSelectionBtn.addEventListener('click', () => {
+            this.selectedImages.clear();
+            this.renderImageBrowser();
+        });
+
+        actionBar.appendChild(addToLayerBtn);
+        actionBar.appendChild(clearSelectionBtn);
+        this.imageBrowserContent.appendChild(actionBar);
+    }
+
+    addSelectedImagesToLayer() {
+        if (this.selectedImages.size === 0) {
+            alert('Please select at least one image.');
+            return;
+        }
+
+        if (this.data.length === 0) {
+            alert('Please create or load a layer first.');
+            return;
+        }
+
+        // Prompt user to select which layer to add to
+        const layerOptions = this.data.map((layer, idx) => 
+            `${idx + 1}: ${layer.Name || 'Unnamed'} (Actor ${layer.ActorId})`
+        ).join('\n');
+        
+        const layerIndexStr = prompt(`Select layer to add images to:\n${layerOptions}\n\nEnter layer number:`);
+        
+        if (!layerIndexStr) return;
+        
+        const layerIndex = parseInt(layerIndexStr) - 1;
+        
+        if (isNaN(layerIndex) || layerIndex < 0 || layerIndex >= this.data.length) {
+            alert('Invalid layer number.');
+            return;
+        }
+
+        // Add each selected image to the layer
+        this.selectedImages.forEach(imagePath => {
+            const newFile = {
+                "FileName": imagePath,
+                "HpUpperLimit": "0", "HpLowerLimit": "0",
+                "Inputting": "false", "InputCommand": "", "InputSkillType": "1",
+                "Action": "false", "Motion": "", "State": "0",
+                "Weapon": "0", "Armor": "0", "Scene": "", "Note": "",
+                "Message": "false", "Face": "false", "Speaker": "false",
+                "Switch": "0", "Variable": "0", "VariableType": "0", "VariableOperand": "0",
+                "Script": ""
+            };
+            this.data[layerIndex].FileList.push(newFile);
+        });
+
+        alert(`Added ${this.selectedImages.size} image(s) to layer ${layerIndex + 1}.`);
+        this.selectedImages.clear();
+        this.renderImageBrowser();
+        this.render();
+    }
+
+    toggleImageBrowser() {
+        if (this.imageBrowserPanel.style.display === 'none') {
+            this.imageBrowserPanel.style.display = 'block';
+            this.toggleBrowserBtn.textContent = 'Hide';
+        } else {
+            this.imageBrowserPanel.style.display = 'none';
+            this.toggleBrowserBtn.textContent = 'Show';
+        }
+    }
 }
 
 const app = new App();
 window.app = app;
+
