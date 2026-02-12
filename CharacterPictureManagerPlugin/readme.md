@@ -1,15 +1,26 @@
-# Character Image Manager Editor
+# Character Picture Manager - Plugin & Editor
 
-A visual configuration editor for the RPG Maker MZ plugin **CharacterPictureManager.js** (created by Triacontane).
+This directory contains the RPG Maker MZ plugin **CharacterPictureManager.js** (created by Triacontane) along with a visual configuration editor and several enhancement patches.
 
-This tool simplifies the process of creating complex JSON configurations for character stand pictures (tachie), allowing you to visually manage layers, conditions, and image files.
+## Contents
+
+-   **CharacterPictureManager.js**: The core plugin for managing character stand pictures (tachie).
+-   **Visual Editor**: A tool to visually manage layers, conditions, and image files.
+    -   `editor.html`, `editor.js`, `editor.css`
+-   **StandPicture_MovementPatch.js**: Add-on for coordinate offsets, floating animations, and movement commands.
+-   **StandPicture_NonPartyPatch.js**: Add-on to display actors who are not in the current party.
 
 ## Features
 
-- **Visual Interface**: Easily add, remove, and reorder layers and images.
-- **Image Preview**: Preview images directly from your RPG Maker project folder.
-- **JSON Import/Export**: Paste your existing plugin parameters to edit them, then copy the result back to RPG Maker.
-- **Field Support**: Supports key fields including Switches, Variables, Armor IDs, and more.
+-   **Visual Interface**: Easily add, remove, and reorder layers and images using the editor.
+-   **Image Preview**: Preview images directly from your RPG Maker project folder in the editor.
+-   **JSON Import/Export**: Paste your existing plugin parameters to edit them, then copy the result back to RPG Maker.
+-   **Movement & Animation (via Patch)**: 
+    -   Offset stand picture coordinates using game variables.
+    -   Subtle floating (bobbing) animation for characters.
+    -   Plugin commands for absolute and relative movement.
+    -   Auto-reset position after event execution.
+-   **Non-Party Display (via Patch)**: Show specific actors even if they are not in the current party.
 
 ## Prerequisites
 
@@ -19,14 +30,14 @@ To use this editor effectively, you need the **CharacterPictureManager.js** plug
 You can download the latest version of `CharacterPictureManager.js` from Triacontane's repository:
 [https://github.com/triacontane/RPGMakerMV/tree/mz_master/CharacterPictureManager.js](https://github.com/triacontane/RPGMakerMV/tree/mz_master/CharacterPictureManager.js)
 
-## How to Use
+## How to Use - Editor
 
 1.  **Open the Editor**: Simply open `editor.html` in your web browser. No installation or server is required.
 2.  **Prepare Images**:
     -   Copy or paste your project's `img` folder (specifically `img/pictures`) into the same directory as this `editor.html` file.
     -   The structure should look like:
         ```
-        /characterImageManagerViewer
+        /CharacterPictureManagerPlugin
           ├── editor.html
           ├── editor.js
           ├── editor.css
@@ -48,30 +59,24 @@ You can download the latest version of `CharacterPictureManager.js` from Triacon
     -   Click **Copy to Clipboard**.
     -   Paste the result back into the `PictureList` (Standing Picture List) parameter of the `CharacterPictureManager` plugin in RPG Maker.
 
+## How to Use - Patches
+
+### Movement Patch (`StandPicture_MovementPatch.js`)
+
+1. Install below `CharacterPictureManager.js`.
+2. Configure **X/Y Offset Variables** in plugin parameters if you want variable-based control.
+3. Enable **Auto Reset** if you want characters to return to (0,0) after every event.
+4. Use Plugin Commands:
+   - `Move Stand Picture`: Move to absolute (X, Y).
+   - `Move Stand Picture Relative`: Move relative to current position.
+
+### Non-Party Patch (`StandPicture_NonPartyPatch.js`)
+
+1. Install below `CharacterPictureManager.js`.
+2. Add Actor IDs to the `Target Actor IDs` parameter.
+3. (Optional) Set an `Enable Switch ID` to control when these extra actors are visible.
+4. **Note**: Since non-party actors don't have a party index, you **must** set their "Actor Position" coordinates in the main `CharacterPictureManager` plugin settings.
+
 ## License
 
 This project is licensed under the MIT License.
-
-```text
-MIT License
-
-Copyright (c) 2024 Character Image Manager Editor Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
