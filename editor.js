@@ -236,6 +236,17 @@ class Editor {
         }
     }
 
+    updateLayerScene(layerId, value) {
+        const layer = this.getLayerById(layerId);
+        if (layer && layer.FileList) {
+            layer.FileList.forEach(file => {
+                file.Scene = value;
+            });
+            // We must re-render to update all the child file inputs
+            this.render();
+        }
+    }
+
     addNewLayer() {
         const actorId = this.filterActorId !== null ? this.filterActorId : "1";
         const newLayer = {
@@ -438,6 +449,9 @@ class Editor {
             const indexInData = this.getLayerIndex(layer._id);
             const isFirst = indexInData === 0;
             const isLast = indexInData === this.data.length - 1;
+            
+            // Reusable scene options
+            const sceneOptions = this.getSceneOptions();
 
             const card = document.createElement('div');
             card.className = 'layer-card';
@@ -489,9 +503,24 @@ class Editor {
             const currentVarId = (layer.FileList && layer.FileList.length > 0) ? layer.FileList[0].Variable : "0";
             
             const metaGrid = document.createElement('div');
-            metaGrid.style.cssText = "display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;";
+            metaGrid.style.cssText = "display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;";
             metaGrid.appendChild(this.createInputGroup('Actor ID', 'number', layer.ActorId || 1, v => this.updateLayerProp(layer._id, 'ActorId', v)));
             metaGrid.appendChild(this.createInputGroup('Variable ID (Layer)', 'number', currentVarId, v => this.updateLayerVariableId(layer._id, v)));
+            
+            // Layer Level Scene (Derived from all files, if uniform)
+            let currentScene = "";
+            if (layer.FileList && layer.FileList.length > 0) {
+                 const firstScene = layer.FileList[0].Scene || "";
+                 const allSame = layer.FileList.every(f => (f.Scene || "") === firstScene);
+                 if (allSame) currentScene = firstScene;
+                 // If not all same, we leave it empty (or we could have a specific "Mixed" value, but standard HTML Select usually just shows one or empty)
+                 // If we want to show it's mixed, we might need a special option, but let's stick to simple "Apply" logic. 
+                 // If mixed, it shows "None (Default)" or whatever corresponds to "" unless we select something. 
+                 // Actually, if mixed, we probably want to show blank but allow selection. 
+                 // For now, if mixed, it will show "None". User can re-select to overwrite.
+            }
+            metaGrid.appendChild(this.createSelectGroup('Scene (Layer)', sceneOptions, currentScene, v => this.updateLayerScene(layer._id, v)));
+            
             content.appendChild(metaGrid);
             
             const grid = document.createElement('div');
@@ -607,8 +636,17 @@ class Editor {
         grid.appendChild(this.createInputGroup('Armor ID', 'number', file.Armor, v => this.updateFileProp(layer._id, fileIndex, 'Armor', v)));
         details.appendChild(grid);
         
-        // Row 3: Note
-        details.appendChild(this.createInputGroup('Memo (Note)', 'text', file.Note, v => this.updateFileProp(layer._id, fileIndex, 'Note', v)));
+        // Row 3: Scene & Note
+        const row3 = document.createElement('div');
+        row3.className = 'file-row';
+        row3.style.cssText = "display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; align-items: end;";
+
+        const sceneOptions = this.getSceneOptions();
+        
+        row3.appendChild(this.createSelectGroup('Scene', sceneOptions, file.Scene || '', v => this.updateFileProp(layer._id, fileIndex, 'Scene', v)));
+        row3.appendChild(this.createInputGroup('Memo (Note)', 'text', file.Note, v => this.updateFileProp(layer._id, fileIndex, 'Note', v)));
+        
+        details.appendChild(row3);
         
         // Actions
         const actions = document.createElement('div');
@@ -803,6 +841,28 @@ class Editor {
             this.render();
             alert(`Added to layer.`);
         }
+    }
+
+    getSceneOptions() {
+        return [
+            {v:'', l:'None (Default)'},
+            {v:'Scene_Title', l:'Title'},
+            {v:'Scene_Map', l:'Map'},
+            {v:'Scene_Battle', l:'Battle'},
+            {v:'Scene_Menu', l:'Menu'},
+            {v:'Scene_Gameover', l:'Gameover'},
+            {v:'Scene_Item', l:'Item'},
+            {v:'Scene_Skill', l:'Skill'},
+            {v:'Scene_Equip', l:'Equip'},
+            {v:'Scene_Status', l:'Status'},
+            {v:'Scene_Options', l:'Options'},
+            {v:'Scene_Save', l:'Save'},
+            {v:'Scene_Load', l:'Load'},
+            {v:'Scene_End', l:'End'},
+            {v:'Scene_Shop', l:'Shop'},
+            {v:'Scene_Name', l:'Name Input'},
+            {v:'Scene_Debug', l:'Debug'}
+        ];
     }
 }
 
