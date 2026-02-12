@@ -36,6 +36,12 @@
  * @default 5
  * @type number
  *
+ * @param AutoReset
+ * @text Auto Reset After Event
+ * @desc Automatically reset stand picture position to original (0,0) when an event ends.
+ * @default false
+ * @type boolean
+ *
  * @command MoveStandPicture
  * @text Move Stand Picture
  * @desc Moves the stand picture to a specific screen coordinate over time.
@@ -82,6 +88,64 @@
  * 1. Offset Coordinates using Game Variables.
  * 2. Automatic Floating Animation (Bobbing).
  * 3. Plugin Command to move the picture to a specific coordinate.
+ * @command MoveStandPictureRelative
+ * @text Move Stand Picture Relative
+ * @desc Moves the stand picture relative to its current position.
+ *
+ * @arg ActorId
+ * @text Actor ID
+ * @desc The actor ID associated with the stand picture.
+ * @type actor
+ * @default 1
+ *
+ * @arg OffsetX
+ * @text Offset X
+ * @desc Relative X position adjustment.
+ * @type number
+ * @min -9999
+ * @default 0
+ *
+ * @arg OffsetY
+ * @text Offset Y
+ * @desc Relative Y position adjustment.
+ * @type number
+ * @min -9999
+ * @default 0
+ *
+ * @arg Duration
+ * @text Duration
+ * @desc Movement duration in frames.
+ * @type number
+ * @min 0
+ * @default 60
+ *
+ * @arg Wait
+ * @text Wait for Completion
+ * @desc Whether to wait until the movement is finished.
+ * @type boolean
+ * @default false
+ *
+ * @help
+ * This plugin extends CharacterPictureManager.js to allow dynamic coordinate 
+ * adjustments and a simple floating animation WITHOUT modifying the original plugin.
+ *
+ * It works by "patching" the sprite instances dynamically as they are created 
+ * or updated by the scene.
+ *
+ * Features:
+ * 1. Offset Coordinates using Game Variables.
+ * 2. Automatic Floating Animation (Bobbing).
+ * 3. Plugin Command to move the picture to a specific coordinate.
+ * 4. Plugin Command to move the picture relative to current position.
+ * 5. Option to auto-reset position after event execution.
+ *
+ * @command EnableAutoReset
+ * @text Enable Auto Reset
+ * @desc Enables the automatic reset of stand picture position after event execution.
+ *
+ * @command DisableAutoReset
+ * @text Disable Auto Reset
+ * @desc Disables the automatic reset of stand picture position after event execution.
  */
 
 (() => {
@@ -105,6 +169,39 @@
 
     Game_Actor.prototype.getStandPictureOffset = function() {
         return this._standPictureOffset || { x: 0, y: 0 };
+    };
+
+    // ------------------------------------------------------------------------
+    // Game_Interpreter Patch for Auto Reset
+    // ------------------------------------------------------------------------
+    const _Game_Interpreter_terminate = Game_Interpreter.prototype.terminate;
+    Game_Interpreter.prototype.terminate = function() {
+        _Game_Interpreter_terminate.call(this);
+
+        // Check if this interpreter is the main map interpreter or troop interpreter
+        if (param.AutoReset && (this === $gameMap._interpreter || ($gameTroop && this === $gameTroop._interpreter))) {
+             
+             // 1. Reset all actors' data
+             if ($gameActors && $gameActors._data) {
+                 for (const actor of $gameActors._data) {
+                     if (actor) {
+                         actor.setStandPictureOffset(0, 0);
+                     }
+                 }
+             }
+
+             // 2. Reset active sprites to reflect the change immediately
+             const scene = SceneManager._scene;
+             if (scene && scene._standSprites) {
+                 scene._standSprites.forEach(sprite => {
+                     if (sprite && sprite._movementPatchApplied) {
+                         sprite._isMoving = false; // Stop any ongoing movement
+                         sprite._manualOffsetX = 0;
+                         sprite._manualOffsetY = 0;
+                     }
+                 });
+             }
+        }
     };
 
     // ------------------------------------------------------------------------
@@ -275,6 +372,64 @@
                 this.wait(duration);
             }
         }
+    });
+
+    PluginManager.registerCommand(PLUGIN_NAME, "MoveStandPictureRelative", function(args) {
+        const actorId = Number(args.ActorId);
+        const offsetX = Number(args.OffsetX);
+        const offsetY = Number(args.OffsetY);
+        const duration = Number(args.Duration);
+        const wait = args.Wait === "true";
+
+        const scene = SceneManager._scene;
+        let sprite = null;
+        const actor = $gameActors.actor(actorId);
+
+        // Try to find the sprite
+        if (scene && actor) {
+            if (scene.findStandSprite) {
+                sprite = scene.findStandSprite(actor);
+            } else if (scene._standSprites) {
+                sprite = scene._standSprites.get(actorId);
+            }
+        }
+
+        if (sprite) {
+            // Patch immediately if needed
+            if (!sprite._movementPatchApplied) {
+                patchStandSpriteInstance(sprite, actor);
+            }
+            
+            // Calculate Target Base
+            // We want to move relative to current VISUAL position (minus float/shake transience if possible, or just standard x/y).
+            // startMoveTo uses (Target - Current) to find Diff.
+            // If we want "Relative +10", we conceptually want (Current + 10).
+            // However, current 'y' includes float offset. We should exclude it for the base calculation 
+            // so we don't bake the wave into the static offset.
+            
+            const currentBaseX = sprite.x;
+            const currentBaseY = sprite.y - (sprite._lastFloatOffset || 0);
+
+            const targetX = currentBaseX + offsetX;
+            const targetY = currentBaseY + offsetY;
+
+            // Execute Move
+            sprite.startMoveTo(targetX, targetY, duration);
+
+            // Handle Wait
+            if (wait && duration > 0) {
+                this.wait(duration);
+            }
+        }
+    });
+
+
+    PluginManager.registerCommand(PLUGIN_NAME, "EnableAutoReset", function(args) {
+        param.AutoReset = true;
+    });
+
+    PluginManager.registerCommand(PLUGIN_NAME, "DisableAutoReset", function(args) {
+        param.AutoReset = false;
     });
 
 })();
