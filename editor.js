@@ -40,6 +40,9 @@ class Editor {
             batchSwitchType: document.getElementById('batchSwitchType'),
             batchSwitchInput: document.getElementById('batchSwitchInput'),
             applyBatchSwitchBtn: document.getElementById('applyBatchSwitchBtn'),
+            
+            // File input for scanning
+            folderInput: document.getElementById('folderInput'),
 
             // Image Browser
             imageBrowserPanel: document.getElementById('imageBrowserPanel'),
@@ -73,6 +76,9 @@ class Editor {
         });
         this.ui.duplicateSelectedBtn.addEventListener('click', () => this.duplicateSelectedLayers());
         this.ui.applyBatchSwitchBtn.addEventListener('click', () => this.batchUpdateSwitch());
+        
+        // Folder selection handler for browser environments
+        this.ui.folderInput.addEventListener('change', (e) => this.handleFolderSelect(e));
     }
 
     // --- Data Management ---
@@ -630,41 +636,82 @@ class Editor {
     // --- Image Browser ---
     
     scanImages() {
-        const imageList = [
-            'child/body.png',
-            'child/cloth/pajama.png',
-            'child/cloth/pajama_pink.png',
-            'child/cloth/underwear.png',
-            'child/cloth/uniform.png',
-            'child/misaki/back_hair.png',
-            'child/misaki/emotion/joy.png',
-            'child/misaki/emotion/niya.png',
-            'child/misaki/emotion/noEmote.png',
-            'child/misaki/emotion/notHappy.png',
-            'child/misaki/emotion/smallSmile.png',
-            'child/misaki/emotion/smile.png',
-            'child/misaki/emotion/surprise.png',
-            'child/misaki/front_hair.png',
-            'child/yuna/back_hair.png',
-            'child/yuna/emotion/face_shadow.png',
-            'child/yuna/emotion/joy.png',
-            'child/yuna/emotion/niya.png',
-            'child/yuna/emotion/noEmote.png',
-            'child/yuna/emotion/notHappy.png',
-            'child/yuna/emotion/red.png',
-            'child/yuna/emotion/smallSmile.png',
-            'child/yuna/emotion/surprise.png',
-            'child/yuna/front_hair.png',
-            'hikari/dark_satisfy.png',
-            'hikari/niya.png',
-            'hikari/normal.png',
-            'hikari/surprise.png',
-            'onne/normal.png',
-            'onne/shy.png'
-        ];
-        this.availableImages = imageList.map(p => p.replace('.png', ''));
+        // Try to use Node.js fs if available (NW.js environment)
+        if (typeof require !== 'undefined') {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                // Assume standard RPG Maker project structure: current dir -> img/pictures
+                const picDir = path.join(process.cwd(), 'img', 'pictures');
+                
+                if (fs.existsSync(picDir)) {
+                    const files = this._walkDir(picDir);
+                    this.availableImages = files
+                        .filter(f => f.toLowerCase().endsWith('.png'))
+                        .map(f => {
+                            // Get relative path from picDir
+                            let rel = path.relative(picDir, f);
+                            // Normalize separators to forward slashes
+                            rel = rel.replace(/\\/g, '/');
+                            // Remove extension
+                            return rel.replace(/\.png$/i, '');
+                        });
+                    this.renderImageBrowser();
+                    this.ui.imageBrowserPanel.style.display = 'block';
+                    alert(`Scanned ${this.availableImages.length} images from local folder.`);
+                    return;
+                }
+            } catch (e) {
+                console.error("Auto scan failed:", e);
+            }
+        }
+
+        // Fallback or explicit request: Ask user to select folder
+        // Using hidden input
+        alert("Please select your 'img/pictures' folder.");
+        this.ui.folderInput.click();
+    }
+
+    handleFolderSelect(event) {
+        const files = Array.from(event.target.files);
+        if (files.length === 0) return;
+
+        this.availableImages = files
+            .filter(f => f.name.toLowerCase().endsWith('.png'))
+            .map(f => {
+                // webkitRelativePath is usually "FolderName/sub/file.png"
+                // We want path relative to the selected root.
+                const pathParts = f.webkitRelativePath.split('/');
+                if (pathParts.length > 1) {
+                    pathParts.shift(); // Remove the top folder name (e.g. "pictures")
+                    return pathParts.join('/').replace(/\.png$/i, '');
+                }
+                return f.name.replace(/\.png$/i, '');
+            });
+            
         this.renderImageBrowser();
         this.ui.imageBrowserPanel.style.display = 'block';
+        alert(`Loaded ${this.availableImages.length} images.`);
+        
+        // Reset input so change event fires again if same folder selected
+        this.ui.folderInput.value = ''; 
+    }
+
+    _walkDir(dir) {
+        const fs = require('fs');
+        const path = require('path');
+        let results = [];
+        const list = fs.readdirSync(dir);
+        list.forEach(file => {
+            file = path.join(dir, file);
+            const stat = fs.statSync(file);
+            if (stat && stat.isDirectory()) {
+                results = results.concat(this._walkDir(file));
+            } else {
+                results.push(file);
+            }
+        });
+        return results;
     }
 
     renderImageBrowser() {
