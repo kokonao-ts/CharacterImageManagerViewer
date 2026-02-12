@@ -636,17 +636,8 @@ class Editor {
         grid.appendChild(this.createInputGroup('Armor ID', 'number', file.Armor, v => this.updateFileProp(layer._id, fileIndex, 'Armor', v)));
         details.appendChild(grid);
         
-        // Row 3: Scene & Note
-        const row3 = document.createElement('div');
-        row3.className = 'file-row';
-        row3.style.cssText = "display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; align-items: end;";
-
-        const sceneOptions = this.getSceneOptions();
-        
-        row3.appendChild(this.createSelectGroup('Scene', sceneOptions, file.Scene || '', v => this.updateFileProp(layer._id, fileIndex, 'Scene', v)));
-        row3.appendChild(this.createInputGroup('Memo (Note)', 'text', file.Note, v => this.updateFileProp(layer._id, fileIndex, 'Note', v)));
-        
-        details.appendChild(row3);
+        // Row 3: Note
+        details.appendChild(this.createInputGroup('Memo (Note)', 'text', file.Note, v => this.updateFileProp(layer._id, fileIndex, 'Note', v)));
         
         // Actions
         const actions = document.createElement('div');
